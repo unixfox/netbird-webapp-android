@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var retries = 0
     private val maxRetries = 15
     private var engineStarted = false
+    private var engineStarting = false
     private var proxyLive = false
     private var pendingUrl: String? = null
     private var navToken = 0
@@ -54,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         web = findViewById(R.id.webView)
+        web.setBackgroundColor(android.graphics.Color.WHITE)
         urlBar = findViewById(R.id.urlBar)
         progressBar = findViewById(R.id.progressBar)
         val btnBack = findViewById<Button>(R.id.btnBack)
@@ -183,7 +185,14 @@ class MainActivity : AppCompatActivity() {
         val url = if (trimmed.contains("://")) trimmed else "https://$trimmed"
         cancelStaleRetries()
         if (!engineStarted) {
-            startEngineThenLoad(url)
+            if (engineStarting) {
+                pendingUrl = url
+                if (url.startsWith("http")) {
+                    web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+                }
+            } else {
+                startEngineThenLoad(url)
+            }
         } else if (!proxyLive) {
             pendingUrl = url
         } else {
@@ -202,6 +211,10 @@ class MainActivity : AppCompatActivity() {
             web.loadUrl(target)
             return
         }
+        if (engineStarting) {
+            pendingUrl = target
+            return
+        }
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val mgmt = prefs.getString("mgmtUrl", null)
             ?: intent.getStringExtra("mgmtUrl")
@@ -210,6 +223,12 @@ class MainActivity : AppCompatActivity() {
             ?: intent.getStringExtra("setupKey")
         val jwt = intent.getStringExtra("jwt")
         pendingUrl = target
+        engineStarting = true
+        if (!target.startsWith("http")) {
+            web.loadUrl(target)
+        } else {
+            web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+        }
 
         Thread {
             try {
@@ -225,6 +244,7 @@ class MainActivity : AppCompatActivity() {
                 engineStarted = true
                 runOnUiThread { waitForTunnelThenLoad(port) }
             } catch (t: Throwable) {
+                engineStarting = false
                 runOnUiThread {
                     web.loadData(
                         "StartProxy failed:\n" + t.message,
@@ -323,6 +343,7 @@ class MainActivity : AppCompatActivity() {
                     if (key.isEmpty()) remove("setupKey") else putString("setupKey", key)
                 }.apply()
                 engineStarted = false
+                engineStarting = false
                 proxyLive = false
                 Thread {
                     try {
