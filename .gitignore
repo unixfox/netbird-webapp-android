@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Go
+nbproxy/nbproxy.aar
+
+# Android AAR built by CI
+app/libs/*.aar
+
+# Keystores - NEVER commit
+*.keystore
+*.jks
+*.p12
+
+# OS
+.DS_Store
