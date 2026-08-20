@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private var retries = 0
     private val maxRetries = 15
     private var engineStarted = false
+    private var proxyLive = false
     private var pendingUrl: String? = null
     private var navToken = 0
     private var pendingRetry: Runnable? = null
@@ -154,7 +155,7 @@ class MainActivity : AppCompatActivity() {
         val target = intent.getStringExtra("targetUrl")
         if (target != null) {
             urlBar.setText(target)
-            if (engineStarted) {
+            if (engineStarted && proxyLive) {
                 cancelStaleRetries()
                 web.loadUrl(target)
             } else {
@@ -183,6 +184,8 @@ class MainActivity : AppCompatActivity() {
         cancelStaleRetries()
         if (!engineStarted) {
             startEngineThenLoad(url)
+        } else if (!proxyLive) {
+            pendingUrl = url
         } else {
             web.loadUrl(url)
         }
@@ -220,7 +223,7 @@ class MainActivity : AppCompatActivity() {
                     port = Nbproxy.startProxy(jwt ?: "", mgmt, "android-embedded-browser", dir).toInt()
                 }
                 engineStarted = true
-                runOnUiThread { applyProxyThenLoad(port) }
+                runOnUiThread { waitForTunnelThenLoad(port) }
             } catch (t: Throwable) {
                 runOnUiThread {
                     web.loadData(
@@ -230,6 +233,32 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
+        }.start()
+    }
+
+    private val CONNECTING_HTML = """
+        <html><body style="background:#f8fafc;display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#334155">
+        <div style="text-align:center">
+        <p style="font-size:18px">Connecting to NetBird&hellip;</p>
+        </div></body></html>
+    """.trimIndent()
+
+    // Waits until at least one tunnel peer is up before applying the proxy
+    // override and loading. Without this the WebView gives up after ~3s,
+    // shows ERR_HTTP_RESPONSE_CODE_FAILURE, and the tunnel is rarely up yet
+    // on a cold start (shortcut tap right after force-stop).
+    private fun waitForTunnelThenLoad(port: Int) {
+        val pending = pendingUrl ?: START_PAGE
+        if (pending.startsWith("http")) {
+            web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+        }
+        Thread {
+            var waited = 0
+            while (!Nbproxy.ready() && waited < 240) {
+                Thread.sleep(500)
+                waited++
+            }
+            runOnUiThread { applyProxyThenLoad(port) }
         }.start()
     }
 
@@ -248,6 +277,7 @@ class MainActivity : AppCompatActivity() {
             Executors.newSingleThreadExecutor()
         ) {
             // Callback = override is live. NOW it is safe to load.
+            proxyLive = true
             runOnUiThread {
                 cancelStaleRetries()
                 web.loadUrl(pendingUrl ?: START_PAGE)
@@ -291,6 +321,7 @@ class MainActivity : AppCompatActivity() {
                     if (key.isEmpty()) remove("setupKey") else putString("setupKey", key)
                 }.apply()
                 engineStarted = false
+                proxyLive = false
                 Thread {
                     try {
                         Nbproxy.stop()

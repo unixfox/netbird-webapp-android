@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/netbirdio/netbird/client/embed"
+	"github.com/netbirdio/netbird/client/status"
 )
 
 var (
@@ -143,6 +144,24 @@ func Status() string {
 		return "error: " + err.Error()
 	}
 	return fmt.Sprintf("peers=%d", len(st.Peers))
+}
+
+// Ready reports whether at least one peer's WireGuard tunnel is up, i.e.
+// the overlay network is actually usable and dials will succeed.
+func Ready() bool {
+	mu.Lock()
+	defer mu.Unlock()
+	if nb == nil {
+		return false
+	}
+	st, err := nb.Status()
+	if err != nil {
+		return false
+	}
+	ov := status.ConvertToStatusOutputOverview(
+		status.ToProtoFullStatus(st), status.ConvertOptions{},
+	)
+	return ov.Peers.Connected > 0
 }
 
 func hostAllowed(hostport string) bool {
