@@ -249,9 +249,11 @@ class MainActivity : AppCompatActivity() {
     // on a cold start (shortcut tap right after force-stop).
     private fun waitForTunnelThenLoad(port: Int) {
         val pending = pendingUrl ?: START_PAGE
-        if (pending.startsWith("http")) {
-            web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+        if (!pending.startsWith("http")) {
+            applyProxyThenLoad(port)
+            return
         }
+        web.loadData(CONNECTING_HTML, "text/html", "utf-8")
         Thread {
             var waited = 0
             while (!Nbproxy.ready() && waited < 240) {
