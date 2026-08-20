@@ -48,7 +48,6 @@ jobs:
           gomobile bind -target=android/arm64 -androidapi 24 -o ../app/libs/nbproxy.aar .
 
       - name: Build and sign release APK
-        working-directory: app
         run: |
           if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "${KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
