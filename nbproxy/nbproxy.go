@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -209,33 +210,30 @@ func FetchFavicon(siteURL string) ([]byte, error) {
 }
 
 func tryOrigin(hc *http.Client, origin string) ([]byte, error) {
+	var candidates []iconCand
+	page, err := fetchBytes(hc, origin+"/", true)
+	if err == nil {
+		candidates = extractIcons(string(page), origin)
+		fmt.Println("favicon: found", len(candidates), "icon link(s) in page")
+	} else {
+		fmt.Println("favicon: page fetch failed:", err)
+	}
+
 	for _, c := range []string{
 		origin + "/apple-touch-icon.png",
 		origin + "/favicon.png",
 		origin + "/favicon.ico",
 	} {
-		if b, err := fetchBytes(hc, c, false); err == nil {
-			fmt.Println("favicon hit:", c, "bytes:", len(b))
-			return b, nil
-		} else {
-			fmt.Println("favicon miss:", c, err)
-		}
+		candidates = append(candidates, iconCand{url: c})
 	}
 
-	page, err := fetchBytes(hc, origin+"/", true)
-	if err == nil {
-		if href := extractIconHref(string(page), origin); href != "" {
-			if b, err := fetchBytes(hc, href, false); err == nil {
-				fmt.Println("favicon hit (page link):", href, "bytes:", len(b))
-				return b, nil
-			} else {
-				fmt.Println("favicon miss (page link):", href, err)
-			}
+	for _, c := range candidates {
+		if b, err := fetchBytes(hc, c.url, false); err == nil {
+			fmt.Println("favicon hit:", c.url, "bytes:", len(b))
+			return b, nil
 		} else {
-			fmt.Println("favicon: no icon link in page")
+			fmt.Println("favicon miss:", c.url, err)
 		}
-	} else {
-		fmt.Println("favicon: page fetch failed:", err)
 	}
 	return nil, fmt.Errorf("no favicon at %s", origin)
 }
@@ -266,12 +264,25 @@ func fetchBytes(hc *http.Client, url string, allowHTML bool) ([]byte, error) {
 	return b, nil
 }
 
-var iconLinkRe = regexp.MustCompile(`(?i)<link[^>]+rel=["']?(?:shortcut\s+)?icon["']?[^>]*>`)
-var iconHrefRe = regexp.MustCompile(`(?i)href=["']([^"']+)["']`)
+type iconCand struct {
+	url  string
+	size int
+}
 
-func extractIconHref(page, origin string) string {
-	var fallback string
+var iconLinkRe = regexp.MustCompile(`(?i)<link[^>]+rel=["']?[^"']*icon[^"']*["']?[^>]*>`)
+var iconHrefRe = regexp.MustCompile(`(?i)href=["']([^"']+)["']`)
+var iconSizesRe = regexp.MustCompile(`(?i)sizes=["'](\d+)x\d+["']`)
+var iconRelRe = regexp.MustCompile(`(?i)rel=["']([^"']+)["']`)
+
+// extractIcons collects every icon <link> from a page, resolving relative
+// hrefs and sorting by declared size (largest first). apple-touch-icon links
+// count as 180px when they don't declare a size.
+func extractIcons(page, origin string) []iconCand {
+	var out []iconCand
+	seen := map[string]bool{}
 	for _, m := range iconLinkRe.FindAllString(page, -1) {
+		rm := iconRelRe.FindStringSubmatch(m)
+		isApple := rm != nil && strings.Contains(strings.ToLower(rm[1]), "apple-touch-icon")
 		hm := iconHrefRe.FindStringSubmatch(m)
 		if hm == nil {
 			continue
@@ -279,29 +290,40 @@ func extractIconHref(page, origin string) string {
 		href := hm[1]
 		low := strings.ToLower(href)
 		if strings.HasSuffix(low, ".svg") || strings.HasSuffix(low, ".svgz") {
-			if fallback == "" {
-				fallback = href
-			}
 			continue
 		}
-		if strings.HasPrefix(href, "//") {
-			return "https:" + href
+		u := resolveURL(origin, href)
+		if u == "" || seen[u] {
+			continue
 		}
-		if strings.HasPrefix(href, "http") {
-			return href
+		seen[u] = true
+		size := 0
+		if sm := iconSizesRe.FindStringSubmatch(m); sm != nil {
+			fmt.Sscanf(sm[1], "%d", &size)
 		}
-		return origin + "/" + strings.TrimPrefix(href, "/")
+		if isApple && size == 0 {
+			size = 180
+		}
+		out = append(out, iconCand{url: u, size: size})
 	}
-	if fallback == "" {
-		return ""
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].size > out[j].size
+	})
+	return out
+}
+
+func resolveURL(origin, href string) string {
+	scheme := "https"
+	if strings.HasPrefix(origin, "http://") {
+		scheme = "http"
 	}
-	if strings.HasPrefix(fallback, "//") {
-		return "https:" + fallback
+	if strings.HasPrefix(href, "//") {
+		return scheme + ":" + href
 	}
-	if strings.HasPrefix(fallback, "http") {
-		return fallback
+	if strings.HasPrefix(href, "http") {
+		return href
 	}
-	return origin + "/" + strings.TrimPrefix(fallback, "/")
+	return origin + "/" + strings.TrimPrefix(href, "/")
 }
 
 // handleConnect tunnels an HTTP CONNECT (TLS) request to the overlay as a
