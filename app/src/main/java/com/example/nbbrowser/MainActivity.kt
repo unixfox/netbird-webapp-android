@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var web: WebView
+    private lateinit var refreshLayout: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
     private lateinit var urlBar: EditText
     private lateinit var progressBar: ProgressBar
     private var retries = 0
@@ -55,6 +56,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         web = findViewById(R.id.webView)
+        refreshLayout = findViewById(R.id.refreshLayout)
+        refreshLayout.setOnRefreshListener {
+            if (engineStarted && proxyLive) {
+                web.reload()
+            } else {
+                refreshLayout.isRefreshing = false
+            }
+        }
         urlBar = findViewById(R.id.urlBar)
         progressBar = findViewById(R.id.progressBar)
         val btnBack = findViewById<Button>(R.id.btnBack)
@@ -84,6 +93,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView, url: String) {
                 retries = 0
                 progressBar.visibility = View.GONE
+                refreshLayout.isRefreshing = false
                 if (url.startsWith("file://")) {
                     urlBar.setText("")
                 } else if (url.startsWith("https://") || url.startsWith("http://")) {
