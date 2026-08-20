@@ -55,7 +55,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         web = findViewById(R.id.webView)
-        web.setBackgroundColor(android.graphics.Color.WHITE)
         urlBar = findViewById(R.id.urlBar)
         progressBar = findViewById(R.id.progressBar)
         val btnBack = findViewById<Button>(R.id.btnBack)
@@ -257,10 +256,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val CONNECTING_HTML = """
-        <html><body style="background:#f8fafc;display:flex;align-items:center;justify-content:center;height:100%;margin:0;font-family:sans-serif;color:#334155">
-        <div style="text-align:center">
-        <p style="font-size:18px">Connecting to NetBird&hellip;</p>
-        </div></body></html>
+        <html><head><meta name="color-scheme" content="light dark">
+        <style>
+        body { background:#f8fafc; color:#334155; display:flex; align-items:center; justify-content:center; height:100%; margin:0; font-family:sans-serif; }
+        @media (prefers-color-scheme: dark) { body { background:#18181b; color:#e4e4e7; } }
+        </style></head>
+        <body><div style="text-align:center"><p style="font-size:18px">Connecting to NetBird&hellip;</p></div></body></html>
     """.trimIndent()
 
     // Waits until at least one tunnel peer is up before applying the proxy
