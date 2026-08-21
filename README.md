@@ -5,7 +5,7 @@ Android web browser that routes all traffic through an embedded
 `VpnService`. It loads internal-only sites (Nomad, Consul, Grafana, …) that
 are only reachable inside a NetBird network, as if they were normal websites.
 
-![NB Browser showing Alertmanager](screenshot.png)
+<img src="screenshot.png" alt="NB Browser showing Alertmanager" width="300">
 
 ## How it works
 
