@@ -1,5 +1,8 @@
 package com.example.nbbrowser
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -20,11 +23,13 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import java.util.concurrent.Executors
 import nbproxy.Nbproxy
@@ -33,9 +38,14 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val START_PAGE = "file:///android_asset/start.html"
+        const val CONNECTING_PAGE = "file:///android_asset/connecting.html"
         const val VIEW_URL_ACTION = "com.example.nbbrowser.VIEW_URL"
         const val PREFS = "browser"
         const val DEFAULT_MGMT = "https://api.netbird.io"
+        // A current desktop Chrome UA string used for "Request desktop site".
+        const val DESKTOP_UA =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
     }
 
     private lateinit var web: WebView
@@ -50,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var pendingUrl: String? = null
     private var navToken = 0
     private var pendingRetry: Runnable? = null
+    private var desktopMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,11 +80,30 @@ class MainActivity : AppCompatActivity() {
         val btnBack = findViewById<Button>(R.id.btnBack)
         val btnFwd = findViewById<Button>(R.id.btnFwd)
         val btnGo = findViewById<Button>(R.id.btnGo)
-        val btnAdd = findViewById<Button>(R.id.btnAdd)
-        val btnSettings = findViewById<Button>(R.id.btnSettings)
+        val btnMenu = findViewById<Button>(R.id.btnMenu)
 
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+
+        // --- Accessibility / "real browser" behaviours ---
+        // Pinch-to-zoom on every page (without the legacy on-screen +/- buttons).
+        web.settings.setSupportZoom(true)
+        web.settings.builtInZoomControls = true
+        web.settings.displayZoomControls = false
+        web.settings.loadWithOverviewMode = true
+        web.settings.useWideViewPort = true
+        // Honour the system font-size accessibility setting, like Chrome does.
+        web.settings.textZoom = (resources.configuration.fontScale * 100).toInt()
+        // Let pages that aren't dark-mode-aware be darkened when the device is
+        // in dark theme, matching Chrome's "Force dark" behaviour.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(web.settings, true)
+        }
+        // "Request desktop site" preference, applied to the user-agent.
+        desktopMode = getSharedPreferences(PREFS, MODE_PRIVATE)
+            .getBoolean("desktopMode", false)
+        applyUserAgent()
+
         web.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 if (newProgress >= 100) {
@@ -82,22 +112,36 @@ class MainActivity : AppCompatActivity() {
                     progressBar.visibility = View.VISIBLE
                     progressBar.progress = newProgress
                 }
+                // Expose progress to TalkBack via the bar's live region.
+                progressBar.contentDescription =
+                    if (newProgress >= 100) null else "Loading, $newProgress percent"
+            }
+
+            override fun onReceivedTitle(view: WebView, title: String?) {
+                // A meaningful label for the web area helps screen-reader users
+                // know which page they are on.
+                if (!title.isNullOrBlank()) web.contentDescription = title
             }
         }
         web.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 progressBar.progress = 0
                 progressBar.visibility = View.VISIBLE
+                if (url.startsWith("http")) view.announceForAccessibility("Loading page")
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 retries = 0
                 progressBar.visibility = View.GONE
                 refreshLayout.isRefreshing = false
-                if (url.startsWith("file://")) {
+                // Clear the address bar only on the local start page. The
+                // connecting placeholder keeps the destination visible.
+                if (url.startsWith(START_PAGE)) {
                     urlBar.setText("")
                 } else if (url.startsWith("https://") || url.startsWith("http://")) {
                     urlBar.setText(url)
+                    view.announceForAccessibility("Page loaded")
+                    if (desktopMode) forceWideViewport(view)
                     getSharedPreferences(PREFS, MODE_PRIVATE)
                         .edit().putString("lastUrl", url).apply()
                 }
@@ -147,8 +191,7 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         }
-        btnAdd.setOnClickListener { addToHomeScreen() }
-        btnSettings.setOnClickListener { openSettings() }
+        btnMenu.setOnClickListener { showMenu(it) }
 
         val target = intent.getStringExtra("targetUrl")
         if (target != null) {
@@ -197,7 +240,7 @@ class MainActivity : AppCompatActivity() {
             if (engineStarting) {
                 pendingUrl = url
                 if (url.startsWith("http")) {
-                    web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+                    showConnecting(url)
                 }
             } else {
                 startEngineThenLoad(url)
@@ -236,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         if (!target.startsWith("http")) {
             web.loadUrl(target)
         } else {
-            web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+            showConnecting(target)
         }
 
         Thread {
@@ -265,14 +308,39 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    private val CONNECTING_HTML = """
-        <html><head><meta name="color-scheme" content="light dark">
-        <style>
-        body { background:#f8fafc; color:#334155; display:flex; align-items:center; justify-content:center; height:100%; margin:0; font-family:sans-serif; }
-        @media (prefers-color-scheme: dark) { body { background:#18181b; color:#e4e4e7; } }
-        </style></head>
-        <body><div style="text-align:center"><p style="font-size:18px">Connecting to NetBird&hellip;</p></div></body></html>
-    """.trimIndent()
+    // Switches the WebView between the default mobile UA and a desktop UA.
+    private fun applyUserAgent() {
+        // A null string resets WebView to its built-in (mobile) user-agent.
+        web.settings.userAgentString = if (desktopMode) DESKTOP_UA else null
+        web.settings.useWideViewPort = true
+        web.settings.loadWithOverviewMode = true
+    }
+
+    // Overrides a responsive site's viewport so it lays out at desktop width,
+    // the way Chrome's "Request desktop site" does. UA alone only fools
+    // server-side detection; this handles client-side responsive layouts.
+    private fun forceWideViewport(view: WebView) {
+        view.evaluateJavascript(
+            "(function(){var m=document.querySelector('meta[name=viewport]');" +
+                "if(!m){m=document.createElement('meta');m.name='viewport';" +
+                "document.getElementsByTagName('head')[0].appendChild(m);}" +
+                "m.setAttribute('content','width=1024');})();",
+            null
+        )
+    }
+
+    // Shows the themed "connecting" placeholder, passing the destination host
+    // so the page can tell the user where they are being taken. Keeps the
+    // full target URL in the address bar, like a browser loading a page.
+    private fun showConnecting(target: String?) {
+        val host = target?.takeIf { it.startsWith("http") }
+            ?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+        if (target != null && target.startsWith("http")) urlBar.setText(target)
+        web.loadUrl(
+            if (host.isNullOrEmpty()) CONNECTING_PAGE
+            else "$CONNECTING_PAGE?host=${Uri.encode(host)}"
+        )
+    }
 
     // Waits until at least one tunnel peer is up before applying the proxy
     // override and loading. Without this the WebView gives up after ~3s,
@@ -284,7 +352,7 @@ class MainActivity : AppCompatActivity() {
             applyProxyThenLoad(port)
             return
         }
-        web.loadData(CONNECTING_HTML, "text/html", "utf-8")
+        showConnecting(pending)
         Thread {
             var waited = 0
             while (!Nbproxy.ready() && waited < 240) {
@@ -319,6 +387,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
+        val menu = popup.menu
+        val onHttp = web.url?.startsWith("http") == true
+
+        val reload = menu.add("Reload").apply { isEnabled = onHttp }
+        val home = menu.add("Home")
+        val desktop = menu.add("Request desktop site").apply {
+            isCheckable = true
+            isChecked = desktopMode
+        }
+        val addShortcut = menu.add("Add to home screen").apply { isEnabled = onHttp }
+        val copy = menu.add("Copy link").apply { isEnabled = onHttp }
+        val share = menu.add("Share…").apply { isEnabled = onHttp }
+        val settings = menu.add("NetBird settings")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item) {
+                reload -> { web.reload(); true }
+                home -> { cancelStaleRetries(); web.loadUrl(START_PAGE); true }
+                desktop -> { toggleDesktopMode(); true }
+                addShortcut -> { addToHomeScreen(); true }
+                copy -> { copyLink(); true }
+                share -> { shareLink(); true }
+                settings -> { openSettings(); true }
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun toggleDesktopMode() {
+        desktopMode = !desktopMode
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+            .edit().putBoolean("desktopMode", desktopMode).apply()
+        applyUserAgent()
+        Toast.makeText(
+            this,
+            if (desktopMode) "Desktop site" else "Mobile site",
+            Toast.LENGTH_SHORT
+        ).show()
+        if (web.url?.startsWith("http") == true) web.reload()
+    }
+
+    private fun copyLink() {
+        val url = web.url ?: return
+        val clip = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clip.setPrimaryClip(ClipData.newPlainText("URL", url))
+        Toast.makeText(this, "Link copied", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLink() {
+        val url = web.url ?: return
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        startActivity(Intent.createChooser(send, "Share link"))
+    }
+
     private fun openSettings() {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val mgmtInput = EditText(this)
@@ -332,6 +460,9 @@ class MainActivity : AppCompatActivity() {
         keyInput.inputType = android.text.InputType.TYPE_CLASS_TEXT or
             android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
 
+        val origMgmt = prefs.getString("mgmtUrl", null) ?: DEFAULT_MGMT
+        val origKey = prefs.getString("setupKey", null) ?: ""
+
         val container = LinearLayout(this)
         container.orientation = LinearLayout.VERTICAL
         container.setPadding(48, 8, 48, 8)
@@ -340,7 +471,7 @@ class MainActivity : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("NetBird settings")
-            .setMessage("Applied on save. The tunnel restarts to pick up the new server.")
+            .setMessage("Applied on save. Changing the server restarts the tunnel.")
             .setView(container)
             .setPositiveButton("Save") { _, _ ->
                 val mgmt = mgmtInput.text.toString().trim()
@@ -353,6 +484,10 @@ class MainActivity : AppCompatActivity() {
                     putString("mgmtUrl", mgmt)
                     if (key.isEmpty()) remove("setupKey") else putString("setupKey", key)
                 }.apply()
+
+                // Only bounce the tunnel when the server actually changed.
+                if (mgmt == origMgmt && key == origKey) return@setPositiveButton
+
                 engineStarted = false
                 engineStarting = false
                 proxyLive = false

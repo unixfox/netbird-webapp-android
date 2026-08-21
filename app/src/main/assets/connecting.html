@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Connecting…</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f4f5;
+    --fg: #18181b;
+    --muted: #71717a;
+    --accent: #245734;
+    --track: #d4d4d8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #18181b;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+      --track: #3f3f46;
+    }
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  .spinner {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 5px solid var(--track);
+    border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Respect users who prefer less motion: swap the spin for a gentle pulse. */
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  }
+  h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+  .host {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0;
+    max-width: 90vw;
+    overflow-wrap: anywhere;
+  }
+  .host b { color: var(--fg); font-weight: 600; }
+  .note { color: var(--muted); font-size: 0.78rem; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+  <!-- role=status + aria-live so TalkBack announces the connecting state. -->
+  <div class="spinner" role="status" aria-label="Connecting"></div>
+  <div aria-live="polite">
+    <h1>Connecting through NetBird…</h1>
+    <p class="host" id="host"></p>
+  </div>
+  <p class="note">Bringing up the secure tunnel. This can take a few seconds.</p>
+  <script>
+    // The host being reached is passed as ?host=… so the user sees where
+    // they are going, just like a real browser shows the URL while loading.
+    var host = new URLSearchParams(location.search).get('host');
+    var el = document.getElementById('host');
+    if (host) {
+      el.innerHTML = 'Reaching <b></b>';
+      el.querySelector('b').textContent = host;
+    } else {
+      el.textContent = 'Establishing the connection';
+    }
+  </script>
+</body>
+</html>

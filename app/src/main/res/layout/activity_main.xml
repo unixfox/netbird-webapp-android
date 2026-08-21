@@ -15,59 +15,59 @@
         <Button
             android:id="@+id/btnBack"
             android:layout_width="48dp"
-            android:layout_height="42dp"
+            android:layout_height="48dp"
             android:text="←"
             android:textSize="16sp"
-            android:padding="0dp" />
+            android:padding="0dp"
+            android:contentDescription="Go back"
+            android:tooltipText="Go back" />
 
         <Button
             android:id="@+id/btnFwd"
             android:layout_width="48dp"
-            android:layout_height="42dp"
+            android:layout_height="48dp"
             android:text="→"
             android:textSize="16sp"
-            android:padding="0dp" />
+            android:padding="0dp"
+            android:contentDescription="Go forward"
+            android:tooltipText="Go forward" />
 
         <EditText
             android:id="@+id/urlBar"
             android:layout_width="0dp"
-            android:layout_height="42dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:hint="Enter address"
+            android:contentDescription="Address bar"
             android:inputType="textUri"
-            android:imeOptions="actionGo"
+            android:imeOptions="actionGo|flagNoExtractUi"
             android:singleLine="true"
             android:padding="4dp"
             android:textColor="#000000"
             android:textColorHint="#888888"
             android:cursorVisible="true"
+            android:importantForAutofill="no"
             android:background="#FFFFFF" />
 
         <Button
             android:id="@+id/btnGo"
             android:layout_width="52dp"
-            android:layout_height="42dp"
+            android:layout_height="48dp"
             android:text="Go"
             android:textSize="14sp"
-            android:padding="0dp" />
+            android:padding="0dp"
+            android:contentDescription="Load address"
+            android:tooltipText="Load address" />
 
         <Button
-            android:id="@+id/btnSettings"
-            android:layout_width="44dp"
-            android:layout_height="42dp"
-            android:text="⚙"
-            android:textSize="18sp"
+            android:id="@+id/btnMenu"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="⋮"
+            android:textSize="20sp"
             android:padding="0dp"
-            android:contentDescription="Settings" />
-
-        <Button
-            android:id="@+id/btnAdd"
-            android:layout_width="52dp"
-            android:layout_height="42dp"
-            android:text="＋"
-            android:textSize="18sp"
-            android:padding="0dp"
-            android:contentDescription="Add to home screen" />
+            android:contentDescription="More options"
+            android:tooltipText="More options" />
     </LinearLayout>
 
     <ProgressBar
@@ -77,6 +77,7 @@
         android:layout_height="3dp"
         android:max="100"
         android:progressTint="#FFC107"
+        android:accessibilityLiveRegion="polite"
         android:visibility="gone" />
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -88,7 +89,8 @@
         <WebView
             android:id="@+id/webView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:contentDescription="Web page" />
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
