@@ -1,92 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="6dp"
-        android:background="#245734">
-
-        <Button
-            android:id="@+id/btnBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:text="←"
-            android:textSize="16sp"
-            android:padding="0dp"
-            android:contentDescription="Go back"
-            android:tooltipText="Go back" />
-
-        <Button
-            android:id="@+id/btnFwd"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:text="→"
-            android:textSize="16sp"
-            android:padding="0dp"
-            android:contentDescription="Go forward"
-            android:tooltipText="Go forward" />
-
-        <EditText
-            android:id="@+id/urlBar"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:hint="Enter address"
-            android:contentDescription="Address bar"
-            android:inputType="textUri"
-            android:imeOptions="actionGo|flagNoExtractUi"
-            android:singleLine="true"
-            android:padding="4dp"
-            android:textColor="#000000"
-            android:textColorHint="#888888"
-            android:cursorVisible="true"
-            android:importantForAutofill="no"
-            android:background="#FFFFFF" />
-
-        <Button
-            android:id="@+id/btnGo"
-            android:layout_width="52dp"
-            android:layout_height="48dp"
-            android:text="Go"
-            android:textSize="14sp"
-            android:padding="0dp"
-            android:contentDescription="Load address"
-            android:tooltipText="Load address" />
-
-        <Button
-            android:id="@+id/btnMenu"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:text="⋮"
-            android:textSize="20sp"
-            android:padding="0dp"
-            android:contentDescription="More options"
-            android:tooltipText="More options" />
-    </LinearLayout>
-
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="3dp"
-        android:max="100"
-        android:progressTint="#FFC107"
-        android:accessibilityLiveRegion="polite"
-        android:visibility="gone" />
+    android:layout_height="match_parent">
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/refreshLayout"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <WebView
+        <com.example.nbbrowser.NestedScrollWebView
             android:id="@+id/webView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -94,4 +20,167 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-</LinearLayout>
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#245734"
+        app:elevation="4dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_scrollFlags="scroll|enterAlways|snap">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="6dp"
+                android:background="#245734">
+
+                <ImageButton
+                    android:id="@+id/btnBack"
+                    android:layout_width="44dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_back"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="fitCenter"
+                    android:padding="8dp"
+                    android:contentDescription="Go back"
+                    android:tooltipText="Go back" />
+
+                <ImageButton
+                    android:id="@+id/btnFwd"
+                    android:layout_width="44dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_forward"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="fitCenter"
+                    android:padding="8dp"
+                    android:contentDescription="Go forward"
+                    android:tooltipText="Go forward" />
+
+                <EditText
+                    android:id="@+id/urlBar"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:hint="Search or type address"
+                    android:contentDescription="Address bar"
+                    android:inputType="textUri"
+                    android:imeOptions="actionGo|flagNoExtractUi"
+                    android:singleLine="true"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888"
+                    android:cursorVisible="true"
+                    android:importantForAutofill="no"
+                    android:background="@drawable/url_bar_bg" />
+
+                <ImageButton
+                    android:id="@+id/btnReload"
+                    android:layout_width="44dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_reload"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="fitCenter"
+                    android:padding="8dp"
+                    android:contentDescription="Reload"
+                    android:tooltipText="Reload" />
+
+                <ImageButton
+                    android:id="@+id/btnMenu"
+                    android:layout_width="44dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_more"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="fitCenter"
+                    android:padding="8dp"
+                    android:contentDescription="More options"
+                    android:tooltipText="More options" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:max="100"
+                android:progressTint="#FFC107"
+                android:accessibilityLiveRegion="polite"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Find-in-page bar: pinned (no scroll flags), hidden until invoked. -->
+        <LinearLayout
+            android:id="@+id/findBar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp"
+            android:background="?android:attr/colorBackground"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/findInput"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:hint="Find in page"
+                android:singleLine="true"
+                android:imeOptions="actionSearch|flagNoExtractUi"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:background="@null" />
+
+            <TextView
+                android:id="@+id/findCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="48dp"
+                android:gravity="center"
+                android:textColor="?android:attr/textColorSecondary"
+                android:text="" />
+
+            <Button
+                android:id="@+id/findPrev"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:text="↑"
+                android:contentDescription="Previous match"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <Button
+                android:id="@+id/findNext"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:text="↓"
+                android:contentDescription="Next match"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <Button
+                android:id="@+id/findClose"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:text="✕"
+                android:contentDescription="Close find bar"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Holds HTML5 fullscreen video; covers everything while active. -->
+    <FrameLayout
+        android:id="@+id/fullscreenContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
