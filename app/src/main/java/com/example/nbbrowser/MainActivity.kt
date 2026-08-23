@@ -25,7 +25,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
-import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.google.android.material.appbar.AppBarLayout
 import java.util.concurrent.Executors
@@ -158,9 +157,9 @@ class MainActivity : AppCompatActivity() {
         web.settings.loadWithOverviewMode = true
         web.settings.useWideViewPort = true
         web.settings.textZoom = (resources.configuration.fontScale * 100).toInt()
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-            WebSettingsCompat.setAlgorithmicDarkeningAllowed(web.settings, true)
-        }
+        // Note: we deliberately do NOT force dark mode on pages. Algorithmic
+        // darkening mangles sites that aren't dark-aware, so pages render with
+        // their own colours; only the app chrome follows the device theme.
         desktopMode = prefs().getBoolean("desktopMode", false)
         applyUserAgent()
 
