@@ -41,8 +41,12 @@ jobs:
       - name: Build nbproxy AAR
         working-directory: nbproxy
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@latest
-          go install golang.org/x/mobile/cmd/gobind@latest
+          # Pin gomobile/gobind to the x/mobile version this module already
+          # depends on. Using @latest broke the build once x/mobile started
+          # requiring Go 1.26 (newer than actions/setup-go pins here).
+          GOMOBILE_VERSION=v0.0.0-20260820023541-8e8303b9da6c
+          go install golang.org/x/mobile/cmd/gomobile@${GOMOBILE_VERSION}
+          go install golang.org/x/mobile/cmd/gobind@${GOMOBILE_VERSION}
           export PATH="$HOME/go/bin:$PATH"
           mkdir -p ../app/libs
           gomobile bind -target=android/arm64 -androidapi 24 -o ../app/libs/nbproxy.aar .
