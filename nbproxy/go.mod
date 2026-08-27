@@ -2,7 +2,7 @@ module example.com/nbproxy
 
 go 1.25.5
 
-require github.com/netbirdio/netbird v0.77.0
+require github.com/netbirdio/netbird v0.77.1
 
 require (
 	cunicu.li/go-rosenpass v0.5.42 // indirect
